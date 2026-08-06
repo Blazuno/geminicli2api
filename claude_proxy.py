@@ -302,17 +302,32 @@ class TokenStore:
 
 
 def _user_agent():
-    return "anthropic-proxy/1.0 (geminicli2api-fork)"
+    import platform
+    system = platform.system()
+    arch = platform.machine()
+    return f"GeminiCLI/0.1.5 ({system}; {arch})"
+
+
+def _get_platform():
+    import platform
+    system = platform.system().upper()
+    arch = platform.machine().upper()
+    if system == "DARWIN":
+        return "DARWIN_ARM64" if arch in ("ARM64", "AARCH64") else "DARWIN_AMD64"
+    elif system == "LINUX":
+        return "LINUX_ARM64" if arch in ("ARM64", "AARCH64") else "LINUX_AMD64"
+    elif system == "WINDOWS":
+        return "WINDOWS_AMD64"
+    return "PLATFORM_UNSPECIFIED"
 
 
 def _client_metadata(project_id=None):
-    meta = {
-        "ide": {"name": "NONE", "version": "0.0.0"},
-        "extension": {"name": "gemini-cli", "version": "0.1.5"},
+    return {
+        "ideType": "IDE_UNSPECIFIED",
+        "platform": _get_platform(),
+        "pluginType": "GEMINI",
+        "duetProject": project_id,
     }
-    if project_id:
-        meta["cloudaicompanionProject"] = project_id
-    return meta
 
 
 # ─── OAuth Flow (first-time auth) ───────────────────────────────────────────
