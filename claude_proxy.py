@@ -25,7 +25,7 @@ import urllib.error
 import ssl
 import socket
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from io import BytesIO
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -181,9 +181,7 @@ class TokenStore:
                     data = json.loads(resp.read())
                 self.access_token = data["access_token"]
                 expires_in = data.get("expires_in", 3600)
-                self.expiry = datetime.now(timezone.utc).replace(
-                    second=datetime.now(timezone.utc).second + expires_in
-                )
+                self.expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
                 if "refresh_token" in data:
                     self.refresh_token = data["refresh_token"]
                 self.save()
@@ -396,9 +394,7 @@ def run_oauth_flow(store: TokenStore) -> bool:
         store.access_token = data["access_token"]
         store.refresh_token = data.get("refresh_token")
         expires_in = data.get("expires_in", 3600)
-        store.expiry = datetime.now(timezone.utc).replace(
-            second=datetime.now(timezone.utc).second + expires_in
-        )
+        store.expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         store.save()
         logging.info("OAuth flow completed successfully")
         print("\n  ✓ Authentication successful! Credentials saved.\n")
