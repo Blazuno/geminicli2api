@@ -17,7 +17,9 @@ from .config import (
     get_base_model_name,
     is_search_model,
     get_thinking_budget,
-    should_include_thoughts
+    should_include_thoughts,
+    resolve_model_name,
+    is_claude_model
 )
 import asyncio
 
@@ -66,8 +68,10 @@ def send_gemini_request(payload: dict, is_streaming: bool = False) -> Response:
     onboard_user(creds, proj_id)
 
     # Build the final payload with project info
+    # Resolve model name (handles Claude name mapping)
+    resolved_model = resolve_model_name(payload.get("model", ""))
     final_payload = {
-        "model": payload.get("model"),
+        "model": resolved_model,
         "project": proj_id,
         "request": payload.get("request", {})
     }
@@ -292,6 +296,15 @@ def build_gemini_payload_from_openai(openai_payload: dict) -> dict:
         "generationConfig": openai_payload.get("generationConfig", {}),
     }
     
+    # For Claude models, strip Gemini-specific config that would cause errors
+    if is_claude_model(model or ""):
+        gen_config = request_data.get("generationConfig", {})
+        gen_config.pop("thinkingConfig", None)
+        # Remove tools/toolConfig if not explicitly set (Claude handles these differently)
+        if not openai_payload.get("tools"):
+            request_data.pop("tools", None)
+            request_data.pop("toolConfig", None)
+    
     # Remove any keys with None values
     request_data = {k: v for k, v in request_data.items() if v is not None}
     
@@ -301,6 +314,7 @@ def build_gemini_payload_from_openai(openai_payload: dict) -> dict:
     }
 
 
+
 def build_gemini_payload_from_native(native_request: dict, model_from_path: str) -> dict:
     """
     Build a Gemini API payload from a native Gemini request.
@@ -308,34 +322,40 @@ def build_gemini_payload_from_native(native_request: dict, model_from_path: str)
     """
     native_request["safetySettings"] = DEFAULT_SAFETY_SETTINGS
     
-    if "generationConfig" not in native_request:
-        native_request["generationConfig"] = {}
+    # Skip Gemini-specific thinking config for Claude models
+    if not is_claude_model(model_from_path):
+        if "generationConfig" not in native_request:
+            native_request["generationConfig"] = {}
+            
+        if "thinkingConfig" not in native_request["generationConfig"]:
+            native_request["generationConfig"]["thinkingConfig"] = {}
         
-    # native_request["enableEnhancedCivicAnswers"] = False
+        if "gemini-2.5-flash-image" not in model_from_path:
+            # Configure thinking based on model variant
+            thinking_budget = get_thinking_budget(model_from_path)
+            include_thoughts = should_include_thoughts(model_from_path)
+        
+            native_request["generationConfig"]["thinkingConfig"]["includeThoughts"] = include_thoughts
+            if "thinkingBudget" in native_request["generationConfig"]["thinkingConfig"]:
+                pass
+            else:
+                native_request["generationConfig"]["thinkingConfig"]["thinkingBudget"] = thinking_budget
+        
+        # Add Google Search grounding for search models
+        if is_search_model(model_from_path):
+            if "tools" not in native_request:
+                native_request["tools"] = []
+            # Add googleSearch tool if not already present
+            if not any(tool.get("googleSearch") for tool in native_request["tools"]):
+                native_request["tools"].append({"googleSearch": {}})
     
-    if "thinkingConfig" not in native_request["generationConfig"]:
-        native_request["generationConfig"]["thinkingConfig"] = {}
-    
-    if "gemini-2.5-flash-image" not in model_from_path:
-        # Configure thinking based on model variant
-        thinking_budget = get_thinking_budget(model_from_path)
-        include_thoughts = should_include_thoughts(model_from_path)
-    
-        native_request["generationConfig"]["thinkingConfig"]["includeThoughts"] = include_thoughts
-        if "thinkingBudget" in native_request["generationConfig"]["thinkingConfig"]:
-            pass
-        else:
-            native_request["generationConfig"]["thinkingConfig"]["thinkingBudget"] = thinking_budget
-    
-    # Add Google Search grounding for search models
-    if is_search_model(model_from_path):
-        if "tools" not in native_request:
-            native_request["tools"] = []
-        # Add googleSearch tool if not already present
-        if not any(tool.get("googleSearch") for tool in native_request["tools"]):
-            native_request["tools"].append({"googleSearch": {}})
+    # Resolve model name (handles Claude name mapping + Gemini base name stripping)
+    if is_claude_model(model_from_path):
+        resolved = resolve_model_name(model_from_path)
+    else:
+        resolved = get_base_model_name(model_from_path)
     
     return {
-        "model": get_base_model_name(model_from_path),  # Use base model name for API call
+        "model": resolved,
         "request": native_request
     }

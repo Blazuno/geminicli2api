@@ -41,8 +41,115 @@ DEFAULT_SAFETY_SETTINGS = [
     {"category": "HARM_CATEGORY_JAILBREAK", "threshold": "BLOCK_NONE"}
 ]
 
+# Claude Model Name Mapping
+# Maps user-friendly names to Google's internal model identifiers
+CLAUDE_MODEL_MAP = {
+    # Opus
+    "claude-opus-4-6": "claude-opus-4-6@default",
+    "claude-opus-4.6": "claude-opus-4-6@default",
+    "claude-opus-4-5": "claude-opus-4-5@20251101",
+    "claude-opus-4.5": "claude-opus-4-5@20251101",
+    "claude-opus-4": "claude-opus-4@20250514",
+    "claude-opus-4.0": "claude-opus-4@20250514",
+    # Sonnet
+    "claude-sonnet-4-6": "claude-sonnet-4-6@default",
+    "claude-sonnet-4.6": "claude-sonnet-4-6@default",
+    "claude-sonnet-4-5": "claude-sonnet-4-5@20250929",
+    "claude-sonnet-4.5": "claude-sonnet-4-5@20250929",
+    "claude-sonnet-4": "claude-sonnet-4@20250514",
+    "claude-sonnet-4.0": "claude-sonnet-4@20250514",
+    # Haiku
+    "claude-haiku-4-5": "claude-haiku-4-5@20251001",
+    "claude-haiku-4.5": "claude-haiku-4-5@20251001",
+}
+
+def resolve_model_name(model_name: str) -> str:
+    """Resolve a user-provided model name to Google's internal identifier.
+    Handles Claude model mapping and strips 'models/' prefix."""
+    # Strip 'models/' prefix if present
+    clean_name = model_name.replace("models/", "")
+    
+    # Check Claude mapping first
+    if clean_name in CLAUDE_MODEL_MAP:
+        return CLAUDE_MODEL_MAP[clean_name]
+    
+    # For Gemini models, return as-is (get_base_model_name handles suffixes)
+    return clean_name
+
+def is_claude_model(model_name: str) -> bool:
+    """Check if a model name refers to a Claude model."""
+    clean = model_name.replace("models/", "").lower()
+    return clean.startswith("claude-") or "claude" in clean
+
 # Base Models (without search variants)
 BASE_MODELS = [
+    # ---- Claude Models (via Google's internal proxy) ----
+    {
+        "name": "models/claude-opus-4-6",
+        "version": "001",
+        "displayName": "Claude Opus 4.6",
+        "description": "Anthropic Claude Opus 4.6 — most capable model for complex reasoning and creative writing",
+        "inputTokenLimit": 200000,
+        "outputTokenLimit": 16384,
+        "supportedGenerationMethods": ["generateContent", "streamGenerateContent"],
+        "temperature": 1.0,
+        "maxTemperature": 1.0,
+        "topP": 0.95,
+        "topK": 64
+    },
+    {
+        "name": "models/claude-opus-4-5",
+        "version": "001",
+        "displayName": "Claude Opus 4.5",
+        "description": "Anthropic Claude Opus 4.5 — previous generation flagship",
+        "inputTokenLimit": 200000,
+        "outputTokenLimit": 16384,
+        "supportedGenerationMethods": ["generateContent", "streamGenerateContent"],
+        "temperature": 1.0,
+        "maxTemperature": 1.0,
+        "topP": 0.95,
+        "topK": 64
+    },
+    {
+        "name": "models/claude-sonnet-4-6",
+        "version": "001",
+        "displayName": "Claude Sonnet 4.6",
+        "description": "Anthropic Claude Sonnet 4.6 — balanced performance and speed",
+        "inputTokenLimit": 200000,
+        "outputTokenLimit": 16384,
+        "supportedGenerationMethods": ["generateContent", "streamGenerateContent"],
+        "temperature": 1.0,
+        "maxTemperature": 1.0,
+        "topP": 0.95,
+        "topK": 64
+    },
+    {
+        "name": "models/claude-sonnet-4-5",
+        "version": "001",
+        "displayName": "Claude Sonnet 4.5",
+        "description": "Anthropic Claude Sonnet 4.5 — previous generation balanced model",
+        "inputTokenLimit": 200000,
+        "outputTokenLimit": 16384,
+        "supportedGenerationMethods": ["generateContent", "streamGenerateContent"],
+        "temperature": 1.0,
+        "maxTemperature": 1.0,
+        "topP": 0.95,
+        "topK": 64
+    },
+    {
+        "name": "models/claude-haiku-4-5",
+        "version": "001",
+        "displayName": "Claude Haiku 4.5",
+        "description": "Anthropic Claude Haiku 4.5 — fast and efficient",
+        "inputTokenLimit": 200000,
+        "outputTokenLimit": 16384,
+        "supportedGenerationMethods": ["generateContent", "streamGenerateContent"],
+        "temperature": 1.0,
+        "maxTemperature": 1.0,
+        "topP": 0.95,
+        "topK": 64
+    },
+    # ---- Gemini Models ----
     {
         "name": "models/gemini-2.5-pro-preview-03-25",
         "version": "001",

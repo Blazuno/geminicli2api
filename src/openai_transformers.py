@@ -16,7 +16,9 @@ from .config import (
     get_thinking_budget,
     should_include_thoughts,
     is_nothinking_model,
-    is_maxthinking_model
+    is_maxthinking_model,
+    is_claude_model,
+    resolve_model_name
 )
 
 
@@ -191,59 +193,68 @@ def openai_request_to_gemini(openai_request: OpenAIChatCompletionRequest) -> Dic
     # generation_config["enableEnhancedCivicAnswers"] = False
 
     # Build the request payload
+    # For Claude models, use resolve_model_name; for Gemini, use get_base_model_name
+    if is_claude_model(openai_request.model):
+        resolved_model = resolve_model_name(openai_request.model)
+    else:
+        resolved_model = get_base_model_name(openai_request.model)
+    
     request_payload = {
         "contents": contents,
         "generationConfig": generation_config,
         "safetySettings": DEFAULT_SAFETY_SETTINGS,
-        "model": get_base_model_name(openai_request.model)  # Use base model name for API call
+        "model": resolved_model
     }
     
-    # Add Google Search grounding for search models
-    if is_search_model(openai_request.model):
-        request_payload["tools"] = [{"googleSearch": {}}]
-    
-    if "gemini-2.5-flash-image" not in openai_request.model:
-        # Add thinking configuration for thinking models
-        thinking_budget = None
+    # Skip Gemini-specific features for Claude models
+    if not is_claude_model(openai_request.model):
+        # Add Google Search grounding for search models
+        if is_search_model(openai_request.model):
+            request_payload["tools"] = [{"googleSearch": {}}]
         
-        # Check if model is an explicit thinking variant (nothinking or maxthinking)
-        if is_nothinking_model(openai_request.model) or is_maxthinking_model(openai_request.model):
-            # For explicit thinking variants, ignore reasoning_effort and use variant-specific budget
-            thinking_budget = get_thinking_budget(openai_request.model)
-        else:
-            # For regular models, check if reasoning_effort was provided in the request
-            reasoning_effort = getattr(openai_request, 'reasoning_effort', None)
-            if reasoning_effort:
-                base_model = get_base_model_name(openai_request.model)
-                if reasoning_effort == "minimal":
-                    # Use same budget as nothinking variants
-                    if "gemini-2.5-flash" in base_model:
-                        thinking_budget = 0
-                    elif "gemini-2.5-pro" in base_model or "gemini-3-pro" in base_model:
-                        thinking_budget = 128
-                elif reasoning_effort == "low":
-                    thinking_budget = 1000
-                elif reasoning_effort == "medium":
-                    thinking_budget = -1
-                elif reasoning_effort == "high":
-                    # Use same budget as maxthinking variants
-                    if "gemini-2.5-flash" in base_model:
-                        thinking_budget = 24576
-                    elif "gemini-2.5-pro" in base_model:
-                        thinking_budget = 32768
-                    elif "gemini-3-pro" in base_model:
-                        thinking_budget = 45000
-            else:
-                # No reasoning_effort provided, use default thinking budget
+        if "gemini-2.5-flash-image" not in openai_request.model:
+            # Add thinking configuration for thinking models
+            thinking_budget = None
+            
+            # Check if model is an explicit thinking variant (nothinking or maxthinking)
+            if is_nothinking_model(openai_request.model) or is_maxthinking_model(openai_request.model):
+                # For explicit thinking variants, ignore reasoning_effort and use variant-specific budget
                 thinking_budget = get_thinking_budget(openai_request.model)
-        
-        if thinking_budget is not None:
-            request_payload["generationConfig"]["thinkingConfig"] = {
-                "thinkingBudget": thinking_budget,
-                "includeThoughts": should_include_thoughts(openai_request.model)
-            }
+            else:
+                # For regular models, check if reasoning_effort was provided in the request
+                reasoning_effort = getattr(openai_request, 'reasoning_effort', None)
+                if reasoning_effort:
+                    base_model = get_base_model_name(openai_request.model)
+                    if reasoning_effort == "minimal":
+                        # Use same budget as nothinking variants
+                        if "gemini-2.5-flash" in base_model:
+                            thinking_budget = 0
+                        elif "gemini-2.5-pro" in base_model or "gemini-3-pro" in base_model:
+                            thinking_budget = 128
+                    elif reasoning_effort == "low":
+                        thinking_budget = 1000
+                    elif reasoning_effort == "medium":
+                        thinking_budget = -1
+                    elif reasoning_effort == "high":
+                        # Use same budget as maxthinking variants
+                        if "gemini-2.5-flash" in base_model:
+                            thinking_budget = 24576
+                        elif "gemini-2.5-pro" in base_model:
+                            thinking_budget = 32768
+                        elif "gemini-3-pro" in base_model:
+                            thinking_budget = 45000
+                else:
+                    # No reasoning_effort provided, use default thinking budget
+                    thinking_budget = get_thinking_budget(openai_request.model)
+            
+            if thinking_budget is not None:
+                request_payload["generationConfig"]["thinkingConfig"] = {
+                    "thinkingBudget": thinking_budget,
+                    "includeThoughts": should_include_thoughts(openai_request.model)
+                }
     
     return request_payload
+
 
 
 def gemini_response_to_openai(gemini_response: Dict[str, Any], model: str) -> Dict[str, Any]:
