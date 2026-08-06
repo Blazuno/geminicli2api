@@ -764,6 +764,22 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
         except BrokenPipeError:
             logging.info("Client disconnected during stream")
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8", errors="replace")
+            logging.error(f"Streaming HTTP {e.code}: {error_body}")
+            try:
+                error_chunk = {
+                    "id": resp_id,
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "model": model_name,
+                    "choices": [{"index": 0, "delta": {"content": f"\n[HTTP {e.code}: {error_body[:500]}]"}, "finish_reason": "stop"}],
+                }
+                self.wfile.write(f"data: {json.dumps(error_chunk)}\n\n".encode())
+                self.wfile.write(b"data: [DONE]\n\n")
+                self.wfile.flush()
+            except Exception:
+                pass
         except Exception as e:
             logging.error(f"Streaming error: {e}")
             try:
