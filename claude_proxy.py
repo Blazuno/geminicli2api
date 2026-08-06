@@ -37,12 +37,14 @@ CREDENTIAL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "oaut
 CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com"
 
 # OAuth — same client ID as Gemini CLI / geminicli2api
-CLIENT_ID = "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com"
-CLIENT_SECRET = "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"
+CLIENT_ID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
+CLIENT_SECRET = "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"
 SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
+    "https://www.googleapis.com/auth/cclog",
+    "https://www.googleapis.com/auth/experimentsandconfigs",
 ]
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
@@ -311,7 +313,7 @@ def _user_agent():
     import platform
     system = platform.system()
     arch = platform.machine()
-    return f"GeminiCLI/0.1.5 ({system}; {arch})"
+    return "antigravity/1.11.9 windows/amd64"
 
 
 def _get_platform():
