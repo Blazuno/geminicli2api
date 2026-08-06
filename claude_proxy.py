@@ -517,7 +517,7 @@ def transform_openai_to_google(openai_body: dict) -> dict:
         }
 
     return {
-        "model": model,
+        "model": f"models/{model}",
         "request": request_data,
     }
 
@@ -656,6 +656,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
         is_stream = body.get("stream", False)
         model_name = body.get("model", "claude-opus-4-6")
+        resolved = resolve_model(model_name)
+
+        logging.info(f"Request: model={model_name} -> {resolved}, stream={is_stream}")
 
         # Build Google API request
         action = "streamGenerateContent" if is_stream else "generateContent"
