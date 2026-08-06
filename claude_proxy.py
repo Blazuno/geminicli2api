@@ -200,11 +200,12 @@ class TokenStore:
 
     def discover_project(self) -> str | None:
         """Discover project ID from Google's API."""
-        # Check env first
-        env_proj = os.getenv("GOOGLE_CLOUD_PROJECT")
+        # Check env vars first
+        env_proj = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GEMINI_PROJECT_ID")
         if env_proj:
             self.project_id = env_proj
             self.save()
+            logging.info(f"Using project ID from env: {env_proj}")
             return env_proj
 
         if self.project_id:
@@ -233,6 +234,11 @@ class TokenStore:
                 self.save()
                 logging.info(f"Discovered project: {proj}")
                 return proj
+            else:
+                logging.error(f"loadCodeAssist response had no project: {json.dumps(data)}")
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8", errors="replace")
+            logging.error(f"Project discovery HTTP {e.code}: {error_body}")
         except Exception as e:
             logging.error(f"Project discovery failed: {e}")
         return None
